@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Backend - Large AI model files (do not push to GitHub)
+backend/all_product_images.zip
+backend/*.zip
+backend/best_model.pt
+backend/*.pt
+backend/*.pth
+backend/__pycache__/
+backend/venv/
+backend/env/
