@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: clothwise-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python download_models.py && gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 300 api_server:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MODEL_URL
+        sync: false
+      - key: IMAGES_URL
+        sync: false
+    healthCheckPath: /health

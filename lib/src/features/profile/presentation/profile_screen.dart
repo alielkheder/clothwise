@@ -1,10 +1,13 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:clothwise/src/app/theme/app_colors.dart';
 import 'package:clothwise/src/app/theme/app_spacing.dart';
 import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/app/theme/theme_provider.dart';
-import 'package:clothwise/src/features/profile/presentation/settings_modal.dart';
+import 'package:clothwise/src/features/auth/presentation/providers/auth_providers.dart';
+import 'package:clothwise/src/features/wardrobe/presentation/providers/wardrobe_providers.dart';
+import 'package:intl/intl.dart';
 
 /// Profile screen (Screens 13-14) - User stats and settings
 class ProfileScreen extends ConsumerWidget {
@@ -14,20 +17,38 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDarkMode = ref.watch(isDarkModeProvider);
     final theme = Theme.of(context);
+
+    // Watch auth state for user data
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+
+    // Watch wardrobe items for count
+    final wardrobeState = ref.watch(backendProductsProvider);
+
+    // Generate random style score (85-100%)
+    final styleScore = 85 + Random().nextInt(16); // 85 to 100
+
+    // Get username or fallback to email
+    final displayName = user?.username ?? user?.email.split('@').first ?? 'User';
+
+    // Format member since date
+    String memberSince = 'Member since Oct 2024'; // Default
+    if (user?.createdAt != null) {
+      memberSince = 'Member since ${DateFormat('MMM yyyy').format(user!.createdAt!)}';
+    }
+
+    // Get item count
+    final itemCount = wardrobeState.when(
+      data: (items) => items.length,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text('Settings', style: theme.textTheme.headlineLarge),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              _showSettingsModal(context);
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -62,18 +83,24 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.md),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Fashion Enthusiast',
-                              style: AppTextStyles.h3,
+                              displayName,
+                              style: AppTextStyles.h3.copyWith(
+                                color: theme.textTheme.headlineMedium?.color,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            SizedBox(height: AppSpacing.xs),
+                            const SizedBox(height: AppSpacing.xs),
                             Text(
-                              'Member since Oct 2024',
-                              style: AppTextStyles.caption,
+                              memberSince,
+                              style: AppTextStyles.caption.copyWith(
+                                color: theme.textTheme.bodySmall?.color,
+                              ),
                             ),
                           ],
                         ),
@@ -87,19 +114,19 @@ class ProfileScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('42', 'Items'),
+                      _buildStatItem(itemCount.toString(), 'Items', theme),
                       Container(
                         width: 1,
                         height: 40,
                         color: isDarkMode ? AppColors.dividerDark : AppColors.divider,
                       ),
-                      _buildStatItem('18', 'Outfits'),
+                      _buildStatItem('0', 'Outfits', theme),
                       Container(
                         width: 1,
                         height: 40,
                         color: isDarkMode ? AppColors.dividerDark : AppColors.divider,
                       ),
-                      _buildStatItem('92%', 'Style Score'),
+                      _buildStatItem('$styleScore%', 'Style Score', theme),
                     ],
                   ),
                 ],
@@ -166,166 +193,46 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: AppSpacing.md),
 
-            // Temperature unit
+            // Notifications Toggle
             _buildSettingCard(
               context,
-              icon: Icons.thermostat_outlined,
-              title: 'Temperature Unit',
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('°C'),
-                      selected: true,
-                      onSelected: (selected) {},
-                      backgroundColor: theme.cardTheme.color,
-                      selectedColor: theme.colorScheme.primary,
-                      labelStyle: AppTextStyles.badge.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                      side: BorderSide(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Celsius'),
-                      selected: false,
-                      onSelected: (selected) {},
-                      backgroundColor: theme.cardTheme.color,
-                      selectedColor: theme.colorScheme.primary,
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                      side: BorderSide(
-                        color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Deterministic seed
-            _buildSettingCard(
-              context,
-              icon: Icons.tag_outlined,
-              title: 'Deterministic Seed',
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: '42',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Color harmony
-            _buildSettingCard(
-              context,
-              icon: Icons.palette_outlined,
-              title: 'Color Harmony',
-              child: Wrap(
-                spacing: AppSpacing.sm,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Complementary'),
-                    selected: false,
-                    onSelected: (selected) {},
-                    backgroundColor: theme.cardTheme.color,
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                    side: BorderSide(
-                      color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Analogous'),
-                    selected: false,
-                    onSelected: (selected) {},
-                    backgroundColor: theme.cardTheme.color,
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                    side: BorderSide(
-                      color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Triadic'),
-                    selected: false,
-                    onSelected: (selected) {},
-                    backgroundColor: theme.cardTheme.color,
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                    side: BorderSide(
-                      color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Auto mode badge
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: theme.cardTheme.color,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                border: Border.all(
-                  color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    ),
-                    child: Text(
-                      'Auto',
-                      style: TextStyle(
-                        color: theme.colorScheme.onPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      'Determines how outfit colors are matched together',
-                      style: AppTextStyles.caption.copyWith(
-                        color: theme.textTheme.bodySmall?.color,
+                      'Get notified about new recommendations and outfit updates',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isDarkMode
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.md),
+                  const _NotificationToggle(),
                 ],
               ),
             ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Support & FAQ section
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Support & FAQ',
+                style: AppTextStyles.sectionHeader.copyWith(
+                  color: theme.textTheme.headlineMedium?.color,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            const _FAQSection(),
 
             const SizedBox(height: AppSpacing.xl),
 
@@ -341,28 +248,6 @@ class ProfileScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: AppSpacing.md),
-
-            // Export wardrobe button
-            OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Export wardrobe
-              },
-              icon: const Icon(Icons.download_outlined, size: 20),
-              label: const Text('Export Wardrobe as CSV'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                ),
-                foregroundColor: theme.textTheme.bodyLarge?.color,
-                side: BorderSide(
-                  color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
 
             // Clear wardrobe button
             OutlinedButton.icon(
@@ -389,17 +274,21 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(String value, String label) {
+  Widget _buildStatItem(String value, String label, ThemeData theme) {
     return Column(
       children: [
         Text(
           value,
-          style: AppTextStyles.h2,
+          style: AppTextStyles.h2.copyWith(
+            color: theme.textTheme.headlineLarge?.color,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           label,
-          style: AppTextStyles.caption,
+          style: AppTextStyles.caption.copyWith(
+            color: theme.textTheme.bodySmall?.color,
+          ),
         ),
       ],
     );
@@ -440,15 +329,6 @@ class ProfileScreen extends ConsumerWidget {
           child,
         ],
       ),
-    );
-  }
-
-  void _showSettingsModal(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const SettingsModal(),
     );
   }
 }
@@ -525,6 +405,162 @@ class _GenderToggleState extends State<_GenderToggle> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Notification toggle widget
+class _NotificationToggle extends StatefulWidget {
+  const _NotificationToggle();
+
+  @override
+  State<_NotificationToggle> createState() => _NotificationToggleState();
+}
+
+class _NotificationToggleState extends State<_NotificationToggle> {
+  bool _notificationsEnabled = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch(
+      value: _notificationsEnabled,
+      onChanged: (value) {
+        setState(() {
+          _notificationsEnabled = value;
+        });
+        // TODO: Save notification preference
+      },
+      activeColor: AppColors.primaryBrownDark,
+    );
+  }
+}
+
+/// FAQ Section widget
+class _FAQSection extends StatelessWidget {
+  const _FAQSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        _FAQItem(
+          question: 'How do I get outfit recommendations?',
+          answer: 'Simply upload a photo of a clothing item from your gallery or take a new photo with your camera. Our AI will analyze the item and provide personalized outfit recommendations that match your style.',
+        ),
+        SizedBox(height: AppSpacing.sm),
+        _FAQItem(
+          question: 'How do I save outfits?',
+          answer: 'After viewing AI recommendations, tap on the items you like to select them (you\'ll see a checkmark). Then press the "Save" button at the top to save your custom outfit.',
+        ),
+        SizedBox(height: AppSpacing.sm),
+        _FAQItem(
+          question: 'Where can I see my saved outfits?',
+          answer: 'Go to the Home screen and scroll down to "Last Outfits You Chose" section. Tap any outfit card to view the complete outfit with all selected items.',
+        ),
+        SizedBox(height: AppSpacing.sm),
+        _FAQItem(
+          question: 'How does the AI recommendation work?',
+          answer: 'Our AI analyzes the clothing item you upload (color, style, category) and suggests matching pieces from our catalog. It considers fashion rules, color harmony, and style compatibility.',
+        ),
+        SizedBox(height: AppSpacing.sm),
+        _FAQItem(
+          question: 'Can I change between light and dark mode?',
+          answer: 'Yes! Toggle the Dark Mode switch in Settings to switch between light and dark themes based on your preference.',
+        ),
+        SizedBox(height: AppSpacing.sm),
+        _FAQItem(
+          question: 'What should I do if recommendations fail to load?',
+          answer: 'Make sure you have a stable internet connection and that the backend server is running. If the issue persists, try uploading a different photo with better lighting.',
+        ),
+      ],
+    );
+  }
+}
+
+/// FAQ Item widget with expandable answer
+class _FAQItem extends StatefulWidget {
+  const _FAQItem({
+    required this.question,
+    required this.answer,
+  });
+
+  final String question;
+  final String answer;
+
+  @override
+  State<_FAQItem> createState() => _FAQItemState();
+}
+
+class _FAQItemState extends State<_FAQItem> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(
+          color: isDark ? AppColors.borderLightDark : AppColors.borderLight,
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.help_outline,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      widget.question,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isExpanded)
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg + 28,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Text(
+                widget.answer,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+            ),
         ],
       ),
     );

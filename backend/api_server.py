@@ -12,6 +12,7 @@ import io
 from PIL import Image
 from transformers import CLIPImageProcessor, CLIPVisionModel
 from train_siamese_resnet50 import SiameseWithProjection
+from clothing_classifier import ClothingStyleClassifier
 import faiss
 import numpy as np
 import os
@@ -33,6 +34,7 @@ device = None
 metadata = None
 faiss_indices = {}
 id_maps = {}
+style_classifier = None
 
 
 def load_model():
@@ -40,7 +42,7 @@ def load_model():
     global model, processor, device
 
     print("Loading CLIP model...")
-    clip = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
+    clip = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32", use_safetensors=True)
     processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
     # Load trained model
@@ -195,7 +197,8 @@ def recommend():
                         'description': product_info.get('desc', ''),
                         'image_id': product_info.get('image', ''),
                         'gender': product_info.get('gender', 'unisex'),
-                        'url': product_info.get('href', '')
+                        'url': product_info.get('href', ''),
+                        'style_type': product_info.get('style_type', 'casual')
                     })
 
         return jsonify({
@@ -251,9 +254,61 @@ def get_product_details(product_name):
             'description': product_info.get('desc', ''),
             'image_id': product_info.get('image', ''),
             'gender': product_info.get('gender', 'unisex'),
-            'url': product_info.get('href', '')
+            'url': product_info.get('href', ''),
+            'style_type': product_info.get('style_type', 'casual')
         }
     })
+
+
+@app.route('/products', methods=['GET'])
+def get_all_products():
+    """
+    Get all products with optional category filtering
+
+    Query parameters:
+    - category: Filter by category (optional)
+    - limit: Maximum number of products to return (default: 100)
+    - offset: Number of products to skip (default: 0)
+    """
+    try:
+        category_filter = request.args.get('category')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+
+        products = []
+        for product_name, product_info in metadata.items():
+            # Apply category filter if specified
+            if category_filter and product_info.get('category') != category_filter:
+                continue
+
+            products.append({
+                'name': product_name,
+                'category': product_info.get('category', ''),
+                'price': product_info.get('price', 'N/A'),
+                'description': product_info.get('desc', ''),
+                'image_id': product_info.get('image', ''),
+                'gender': product_info.get('gender', 'unisex'),
+                'url': product_info.get('href', ''),
+                'style_type': product_info.get('style_type', 'casual')
+            })
+
+        # Apply pagination
+        total = len(products)
+        products = products[offset:offset + limit]
+
+        return jsonify({
+            'success': True,
+            'products': products,
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/shuffle', methods=['POST'])
@@ -317,6 +372,76 @@ def shuffle_recommendations():
         }), 500
 
 
+@app.route('/classify-upload', methods=['POST'])
+def classify_user_upload():
+    """
+    Classify a user-uploaded clothing image into casual/formal/semi-formal
+
+    Request body: {"image": "base64_encoded_image_string"}
+    Response: {"success": true, "style_type": "casual", "display_name": "Casual", "confidence": 0.95}
+    """
+    try:
+        data = request.get_json()
+
+        if 'image' not in data:
+            return jsonify({'success': False, 'error': 'No image provided'}), 400
+
+        # Decode base64 image
+        image_data = base64.b64decode(data['image'])
+
+        # Classify the image
+        style_type, confidence = style_classifier.classify_from_bytes(image_data)
+
+        return jsonify({
+            'success': True,
+            'style_type': style_type,
+            'display_name': style_classifier.get_display_name(style_type),
+            'confidence': float(confidence)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/classification-stats', methods=['GET'])
+def get_classification_stats():
+    """
+    Get statistics about product classifications
+
+    Response: {"success": true, "total_products": 1982, "distribution": {...}, "percentages": {...}}
+    """
+    try:
+        total = len(metadata)
+        distribution = {'casual': 0, 'formal': 0, 'semi_formal': 0}
+
+        for product_data in metadata.values():
+            style_type = product_data.get('style_type', 'casual')
+
+            # Map to display names
+            if style_type == 'uniform':
+                distribution['formal'] += 1
+            elif style_type == 'semi_uniform':
+                distribution['semi_formal'] += 1
+            else:
+                distribution['casual'] += 1
+
+        # Calculate percentages
+        percentages = {
+            key: round((count / total * 100), 1) if total > 0 else 0
+            for key, count in distribution.items()
+        }
+
+        return jsonify({
+            'success': True,
+            'total_products': total,
+            'distribution': distribution,
+            'percentages': percentages
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     print("=" * 70)
     print("OUTFIT RECOMMENDATION API SERVER")
@@ -327,16 +452,22 @@ if __name__ == '__main__':
     load_metadata()
     load_faiss_indices()
 
+    # Load style classifier
+    print("\nLoading clothing style classifier...")
+    style_classifier = ClothingStyleClassifier()
+
     print("\n" + "=" * 70)
     print("Server is ready!")
     print("=" * 70)
     print("\nAPI Endpoints:")
-    print("  - GET  /health              - Health check")
-    print("  - GET  /categories          - List available categories")
-    print("  - POST /recommend           - Get recommendations for image")
-    print("  - GET  /image/<image_id>    - Get product image")
-    print("  - GET  /product/<name>      - Get product details")
-    print("  - POST /shuffle             - Shuffle recommendations")
+    print("  - GET  /health                - Health check")
+    print("  - GET  /categories            - List available categories")
+    print("  - POST /recommend             - Get recommendations for image")
+    print("  - GET  /image/<image_id>      - Get product image")
+    print("  - GET  /product/<name>        - Get product details")
+    print("  - POST /shuffle               - Shuffle recommendations")
+    print("  - POST /classify-upload       - Classify clothing style (NEW)")
+    print("  - GET  /classification-stats  - Get classification statistics (NEW)")
     print("\n" + "=" * 70)
 
     # Start server

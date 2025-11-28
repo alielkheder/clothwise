@@ -53,12 +53,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      context.go(RoutePaths.home);
+      context.go(RoutePaths.login);
     }
   }
 
   void _skip() {
-    context.go(RoutePaths.home);
+    context.go(RoutePaths.login);
   }
 
   @override

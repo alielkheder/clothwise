@@ -1,27 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:clothwise/src/app/router.dart';
 import 'package:clothwise/src/app/theme/app_colors.dart';
 import 'package:clothwise/src/app/theme/app_spacing.dart';
 import 'package:clothwise/src/app/theme/app_text_styles.dart';
-import 'package:clothwise/src/widgets/app_button.dart';
+import 'package:clothwise/src/core/services/preferences_service.dart';
 
-/// Splash screen (Screen 1) - Welcome screen with logo
-class SplashScreen extends StatelessWidget {
+/// Splash screen (Screen 1) - Auto-navigates based on app state
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _navigateBasedOnState();
+  }
+
+  Future<void> _navigateBasedOnState() async {
+    // Wait for splash screen to show
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    // Check if user has completed onboarding
+    final hasCompletedOnboarding = await PreferencesService.hasCompletedOnboarding();
+
+    if (!mounted) return;
+
+    // Check if user is authenticated
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+
+    // Navigate based on state
+    if (!hasCompletedOnboarding) {
+      // First time user - show onboarding
+      context.go(RoutePaths.onboarding);
+    } else if (user == null) {
+      // User has seen onboarding but not logged in
+      context.go(RoutePaths.login);
+    } else {
+      // User is logged in - go to home
+      context.go(RoutePaths.home);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
+      body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Spacer(flex: 2),
-
               // Logo container
               Container(
                 width: 100,
@@ -61,34 +102,18 @@ class SplashScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
 
               // Tagline
-              Text(
+              const Text(
                 'AI outfits, styled for the weather.',
                 style: AppTextStyles.tagline,
                 textAlign: TextAlign.center,
               ),
 
-              const Spacer(flex: 3),
+              const SizedBox(height: AppSpacing.xl),
 
-              // Get Started button
-              AppButton(
-                label: 'Get Started',
-                onPressed: () => context.go(RoutePaths.onboarding),
+              // Loading indicator
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBrown),
               ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Sign in text button
-              TextButton(
-                onPressed: () => context.go(RoutePaths.login),
-                child: Text(
-                  'Sign in',
-                  style: AppTextStyles.buttonMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),

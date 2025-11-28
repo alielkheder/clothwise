@@ -20,7 +20,7 @@ void main() {
         condition: WeatherCondition.sunny,
       );
 
-      final outfit = Outfit(
+      const outfit = Outfit(
         id: 'test-outfit',
         topwear: const ClothingItem(
           id: 't1',

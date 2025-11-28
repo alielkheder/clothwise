@@ -19,23 +19,23 @@ void main() {
         condition: WeatherCondition.sunny,
       );
 
-      testOutfit = Outfit(
+      testOutfit = const Outfit(
         id: 'test-outfit',
-        topwear: const ClothingItem(
+        topwear: ClothingItem(
           id: 't1',
           name: 'Test Shirt',
           category: ClothingCategory.topwear,
           color: 'Blue',
           usage: ClothingUsage.casual,
         ),
-        bottomwear: const ClothingItem(
+        bottomwear: ClothingItem(
           id: 'b1',
           name: 'Test Pants',
           category: ClothingCategory.bottomwear,
           color: 'Black',
           usage: ClothingUsage.casual,
         ),
-        footwear: const ClothingItem(
+        footwear: ClothingItem(
           id: 'f1',
           name: 'Test Shoes',
           category: ClothingCategory.footwear,
@@ -43,7 +43,7 @@ void main() {
           usage: ClothingUsage.casual,
         ),
         harmonyScore: 0.92,
-        reasons: const [
+        reasons: [
           OutfitReason(
             type: ReasonType.weather,
             title: 'Weather: 25°C — spring',

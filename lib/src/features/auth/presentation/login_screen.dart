@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:clothwise/src/app/router.dart';
 import 'package:clothwise/src/app/theme/app_colors.dart';
@@ -6,47 +7,75 @@ import 'package:clothwise/src/app/theme/app_spacing.dart';
 import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/widgets/app_button.dart';
 import 'package:clothwise/src/widgets/app_text_field.dart';
+import 'package:clothwise/src/features/auth/presentation/providers/auth_providers.dart';
 
-/// Simple login screen with username and password
-class LoginScreen extends StatefulWidget {
+/// Login screen with email and password
+/// Integrates with Firebase Authentication
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  /// Handle login with Firebase Authentication
   Future<void> _handleLogin() async {
+    // Clear any previous errors
+    ref.read(authNotifierProvider.notifier).clearError();
+
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() => _isLoading = true);
+      // Call sign in method from AuthNotifier
+      await ref.read(authNotifierProvider.notifier).signInWithEmail(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
-      // Simulate login delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      setState(() => _isLoading = false);
+      // Check if login was successful
+      final authState = ref.read(authNotifierProvider);
 
       if (mounted) {
-        // Navigate to home on successful login
-        context.go(RoutePaths.home);
+        if (authState.error != null) {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authState.error!),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else if (authState.user != null) {
+          // Login successful - check email verification
+          if (authState.isEmailVerified) {
+            // Email verified - go to home
+            context.go(RoutePaths.home);
+          } else {
+            // Email not verified - go to verification screen
+            context.go(RoutePaths.emailVerification);
+          }
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch auth state for loading status
+    final authState = ref.watch(authNotifierProvider);
+    final isLoading = authState.isLoading;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -70,16 +99,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo
                 Center(
                   child: Container(
-                    width: 80,
-                    height: 80,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       color: AppColors.cardBackground,
                       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                     ),
-                    child: const Icon(
-                      Icons.checkroom,
-                      size: 48,
-                      color: AppColors.primaryBrown,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      child: Image.asset(
+                        'assets/images/logo.jpg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.checkroom,
+                            size: 48,
+                            color: AppColors.primaryBrown,
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -105,16 +143,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: AppSpacing.xxxl),
 
-                // Username field
+                // Email field
                 AppTextField(
-                  controller: _usernameController,
-                  labelText: 'Username',
-                  hintText: 'Enter your username',
-                  prefixIcon: const Icon(Icons.person_outline),
+                  controller: _emailController,
+                  hintText: 'Email',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your username';
+                      return 'Please enter your email';
+                    }
+                    // Basic email validation
+                    final emailRegex = RegExp(
+                      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                    );
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Please enter a valid email address';
                     }
                     return null;
                   },
@@ -125,8 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password field
                 AppTextField(
                   controller: _passwordController,
-                  labelText: 'Password',
-                  hintText: 'Enter your password',
+                  hintText: 'Password',
                   obscureText: _obscurePassword,
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
@@ -160,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AppButton(
                   label: 'Sign In',
                   onPressed: _handleLogin,
-                  isLoading: _isLoading,
+                  isLoading: isLoading,
                 ),
 
                 const SizedBox(height: AppSpacing.lg),
@@ -168,12 +212,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Forgot password
                 TextButton(
                   onPressed: () {
-                    // TODO: Implement forgot password
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Forgot password feature coming soon'),
-                      ),
-                    );
+                    // Show dialog to enter email for password reset
+                    _showForgotPasswordDialog();
                   },
                   child: Text(
                     'Forgot Password?',
@@ -196,14 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to sign up
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sign up feature coming soon'),
-                          ),
-                        );
-                      },
+                      onPressed: () => context.go(RoutePaths.register),
                       child: const Text('Sign Up'),
                     ),
                   ],
@@ -212,6 +245,91 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Show dialog for password reset
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        title: const Text(
+          'Reset Password',
+          style: AppTextStyles.h3,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Enter your email address to receive a password reset link.',
+              style: AppTextStyles.bodyRegular.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: emailController,
+              labelText: 'Email',
+              hintText: 'Enter your email',
+              prefixIcon: const Icon(Icons.email_outlined),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          AppButton(
+            label: 'Send Reset Link',
+            fullWidth: false,
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter your email'),
+                  ),
+                );
+                return;
+              }
+
+              // Save ScaffoldMessenger before closing dialog
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.of(context).pop();
+
+              try {
+                // Send password reset email
+                await ref
+                    .read(authNotifierProvider.notifier)
+                    .sendPasswordResetEmail(email);
+
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Password reset link sent! Check your email.'),
+                    backgroundColor: AppColors.successGreen,
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              } catch (e) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }

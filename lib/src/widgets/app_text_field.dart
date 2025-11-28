@@ -39,6 +39,8 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
@@ -50,10 +52,23 @@ class AppTextField extends StatelessWidget {
       enabled: enabled,
       maxLines: maxLines,
       minLines: minLines,
-      style: AppTextStyles.bodyRegular,
+      style: AppTextStyles.bodyRegular.copyWith(
+        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+      ),
       decoration: InputDecoration(
         hintText: hintText,
         labelText: labelText,
+        hintStyle: AppTextStyles.bodyRegular.copyWith(
+          color: isDark ? AppColors.textTertiaryDark : AppColors.textTertiary,
+        ),
+        labelStyle: labelText != null
+            ? AppTextStyles.bodyRegular.copyWith(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+              )
+            : null,
+        floatingLabelBehavior: labelText != null
+            ? FloatingLabelBehavior.auto
+            : FloatingLabelBehavior.never,
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
       ),

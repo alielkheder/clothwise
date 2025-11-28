@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Service for AI-powered outfit recommendations
 class RecommendationService {
@@ -8,7 +8,7 @@ class RecommendationService {
       : _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: 'http://localhost:5000', // Change to your server IP for real device
+                baseUrl: 'http://192.168.1.5:5000', // Local network IP for phone/emulator
                 connectTimeout: const Duration(seconds: 30),
                 receiveTimeout: const Duration(seconds: 30),
               ),
@@ -16,15 +16,16 @@ class RecommendationService {
 
   final Dio _dio;
 
-  /// Get recommendations for an uploaded image
+  /// Get recommendations for an uploaded image (accepts path string for web compatibility)
   Future<Map<String, List<ProductRecommendation>>> getRecommendations({
-    required File imageFile,
+    required String imagePath,
     List<String>? categories,
     int numItems = 15,
   }) async {
     try {
-      // Convert image to base64
-      final bytes = await imageFile.readAsBytes();
+      // Convert image to base64 using XFile (works on both web and mobile)
+      final xFile = XFile(imagePath);
+      final bytes = await xFile.readAsBytes();
       final base64Image = base64Encode(bytes);
 
       // Make API request
@@ -205,6 +206,7 @@ class ProductRecommendation {
     required this.imageId,
     this.gender = 'unisex',
     this.url = '',
+    this.styleType = 'casual',
   });
 
   factory ProductRecommendation.fromJson(Map<String, dynamic> json) {
@@ -216,6 +218,7 @@ class ProductRecommendation {
       imageId: json['image_id'] as String,
       gender: json['gender'] as String? ?? 'unisex',
       url: json['url'] as String? ?? '',
+      styleType: json['style_type'] as String? ?? 'casual',
     );
   }
 
@@ -226,6 +229,7 @@ class ProductRecommendation {
   final String imageId;
   final String gender;
   final String url;
+  final String styleType; // casual, uniform, semi_uniform
 
   Map<String, dynamic> toJson() {
     return {
@@ -236,6 +240,7 @@ class ProductRecommendation {
       'image_id': imageId,
       'gender': gender,
       'url': url,
+      'style_type': styleType,
     };
   }
 }

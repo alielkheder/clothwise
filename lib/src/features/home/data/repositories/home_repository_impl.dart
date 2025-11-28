@@ -3,7 +3,11 @@ import 'package:clothwise/src/features/home/domain/entities/weather.dart';
 import 'package:clothwise/src/features/home/domain/repositories/home_repository.dart';
 import 'package:clothwise/src/features/home/data/datasources/home_fake_datasource.dart';
 
-/// Implementation of HomeRepository using fake data
+/// Implementation of HomeRepository
+/// NOTE: This currently uses fake outfit data for the home screen demo.
+/// User's REAL outfit recommendations are saved via OutfitStorageService
+/// when they upload photos and get AI recommendations.
+/// Access saved outfits using: OutfitStorageService().getLatestOutfit()
 class HomeRepositoryImpl implements HomeRepository {
   HomeRepositoryImpl({
     HomeFakeDataSource? dataSource,

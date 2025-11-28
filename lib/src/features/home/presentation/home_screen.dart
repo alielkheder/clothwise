@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'package:clothwise/src/app/theme/app_colors.dart';
 import 'package:clothwise/src/app/theme/app_spacing.dart';
 import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/features/recommendations/presentation/recommendations_screen.dart';
+import 'package:clothwise/src/features/home/data/datasources/outfit_storage_service.dart';
+import 'package:clothwise/src/features/home/presentation/outfit_detail_screen.dart';
 
 /// Home screen - Upload photo for outfit recommendations
 class HomeScreen extends ConsumerStatefulWidget {
@@ -341,8 +344,31 @@ class _UploadOptionState extends State<_UploadOption>
 }
 
 /// Last outfits section widget
-class _LastOutfitsSection extends StatelessWidget {
+class _LastOutfitsSection extends StatefulWidget {
   const _LastOutfitsSection();
+
+  @override
+  State<_LastOutfitsSection> createState() => _LastOutfitsSectionState();
+}
+
+class _LastOutfitsSectionState extends State<_LastOutfitsSection> {
+  final OutfitStorageService _storageService = OutfitStorageService();
+  List<Map<String, dynamic>> _outfits = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOutfits();
+  }
+
+  Future<void> _loadOutfits() async {
+    final outfits = await _storageService.getOutfitHistory();
+    setState(() {
+      _outfits = outfits;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -367,103 +393,160 @@ class _LastOutfitsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          height: 210,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              return Container(
-                width: 140,
-                margin: const EdgeInsets.only(right: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: theme.cardTheme.color,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDarkMode ? AppColors.shadowMediumDark : AppColors.shadowMedium,
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Image placeholder
-                    Container(
-                      height: 140,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(AppSpacing.cardRadius),
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          index == 0
-                              ? Icons.checkroom
-                              : index == 1
-                                  ? Icons.business_center
-                                  : Icons.sports_basketball,
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _outfits.isEmpty
+                ? Container(
+                    height: 210,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.checkroom_outlined,
                           size: 48,
                           color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
                         ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            index == 0
-                                ? 'Casual Outfit'
-                                : index == 1
-                                    ? 'Business Meeting'
-                                    : index == 2
-                                        ? 'Sport Casual'
-                                        : 'Evening Wear',
-                            style: AppTextStyles.itemName.copyWith(
-                              color: theme.textTheme.bodyLarge?.color,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'No saved outfits yet',
+                          style: AppTextStyles.bodyRegular.copyWith(
+                            color: isDarkMode ? AppColors.textSecondaryDark : AppColors.textSecondary,
                           ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Upload a photo and select items to create your first outfit',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                : SizedBox(
+                    height: 210,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _outfits.length,
+                      itemBuilder: (context, index) {
+                        final outfit = _outfits[index];
+                        final imagePath = outfit['imagePath'] as String?;
+                        final description = outfit['description'] as String? ?? 'My Outfit';
+                        final selectedItems = outfit['selectedItems'] as List<dynamic>?;
+                        final itemCount = selectedItems?.length ?? 0;
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => OutfitDetailScreen(outfit: outfit),
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                            );
+                          },
+                          child: Container(
+                            width: 140,
+                            margin: const EdgeInsets.only(right: AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: theme.cardTheme.color,
+                              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDarkMode ? AppColors.shadowMediumDark : AppColors.shadowMedium,
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              index == 0
-                                  ? 'Casual'
-                                  : index == 1
-                                      ? 'Formal'
-                                      : 'Sport',
-                              style: const TextStyle(fontSize: 10),
-                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                              // Image from uploaded photo
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(AppSpacing.cardRadius),
+                                ),
+                                child: imagePath != null && imagePath.isNotEmpty
+                                    ? (imagePath.startsWith('http')
+                                        ? Image.network(
+                                            imagePath,
+                                            height: 140,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return _buildPlaceholder(isDarkMode);
+                                            },
+                                          )
+                                        : Image.file(
+                                            File(imagePath),
+                                            height: 140,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return _buildPlaceholder(isDarkMode);
+                                            },
+                                          ))
+                                    : _buildPlaceholder(isDarkMode),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(AppSpacing.sm),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      description,
+                                      style: AppTextStyles.itemName.copyWith(
+                                        color: theme.textTheme.bodyLarge?.color,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.sm,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '$itemCount items',
+                                        style: const TextStyle(fontSize: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        );
+                      },
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+                  ),
       ],
+    );
+  }
+
+  Widget _buildPlaceholder(bool isDarkMode) {
+    return Container(
+      height: 140,
+      width: double.infinity,
+      color: isDarkMode ? AppColors.borderLightDark : AppColors.borderLight,
+      child: Center(
+        child: Icon(
+          Icons.checkroom,
+          size: 48,
+          color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:clothwise/src/app/router.dart';
 import 'package:clothwise/src/app/theme/app_colors.dart';
 import 'package:clothwise/src/app/theme/app_spacing.dart';
@@ -9,7 +10,8 @@ import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/app/theme/theme_provider.dart';
 import 'package:clothwise/src/widgets/app_text_field.dart';
 import 'package:clothwise/src/features/wardrobe/presentation/providers/wardrobe_providers.dart';
-import 'package:clothwise/src/features/wardrobe/presentation/add_item_screen.dart';
+import 'package:clothwise/src/features/wardrobe/presentation/widgets/camera_action_dialog.dart';
+import 'package:clothwise/src/features/wardrobe/data/local_wardrobe_storage.dart';
 import 'package:clothwise/src/features/home/domain/entities/clothing_item.dart';
 
 /// Wardrobe screen (Screens 9-10) - User's clothing collection
@@ -22,6 +24,8 @@ class WardrobeScreen extends ConsumerStatefulWidget {
 
 class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
   String _selectedCategory = 'All';
+  final _imagePicker = ImagePicker();
+  final _wardrobeStorage = LocalWardrobeStorage();
 
   final List<String> _categories = [
     'All',
@@ -30,6 +34,71 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
     'One-piece',
     'Footwear',
   ];
+
+  /// Capture photo from camera
+  Future<void> _capturePhoto() async {
+    try {
+      final XFile? photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (photo != null && mounted) {
+        _showActionDialog(photo.path);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error capturing photo: $e')),
+        );
+      }
+    }
+  }
+
+  /// Show dialog asking what to do with the captured photo
+  void _showActionDialog(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => CameraActionDialog(
+        onAddToWardrobe: () => _addToWardrobe(imagePath),
+        onGetRecommendations: () => _getRecommendations(imagePath),
+      ),
+    );
+  }
+
+  /// Add photo to wardrobe
+  Future<void> _addToWardrobe(String imagePath) async {
+    // TODO: Show form to get item details (name, category, etc.)
+    // For now, just save with default values
+    try {
+      await _wardrobeStorage.saveItem(
+        imagePath: imagePath,
+        name: 'New Item',
+        category: 'Topwear',
+        styleType: 'casual',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item added to wardrobe!')),
+        );
+        // Refresh wardrobe items
+        ref.invalidate(backendProductsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving item: $e')),
+        );
+      }
+    }
+  }
+
+  /// Navigate to recommendations screen with the captured photo
+  void _getRecommendations(String imagePath) {
+    // Navigate to recommendations screen with the photo
+    context.go(RoutePaths.recommendations, extra: imagePath);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,9 +182,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
           Expanded(
             child: Consumer(
               builder: (context, ref, child) {
-                final wardrobeState = ref.watch(wardrobeNotifierProvider);
+                // Watch backend products instead of wardrobe items
+                final backendProductsState = ref.watch(backendProductsProvider);
 
-                return wardrobeState.when(
+                return backendProductsState.when(
                   data: (items) {
                     // Filter items by category
                     final filteredItems = _selectedCategory == 'All'
@@ -164,7 +234,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                       itemCount: filteredItems.length,
                       itemBuilder: (context, index) {
                         final item = filteredItems[index];
-                        return _WardrobeItemCard(item: item);
+                        return _WardrobeItemCard(
+                          item: item,
+                          // onTap disabled - only get AI recommendations from camera/gallery
+                        );
                       },
                     );
                   },
@@ -207,16 +280,9 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddItemScreen(),
-            ),
-          );
-        },
+        onPressed: _capturePhoto,
         backgroundColor: theme.colorScheme.primary,
-        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+        child: Icon(Icons.camera_alt, color: theme.colorScheme.onPrimary),
       ),
     );
   }

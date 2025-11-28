@@ -1,37 +1,46 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:clothwise/src/features/home/domain/entities/clothing_item.dart';
-import 'package:clothwise/src/features/wardrobe/data/repositories/wardrobe_repository.dart';
+import 'package:clothwise/src/features/wardrobe/data/backend_products_service.dart';
 
-/// Provider for wardrobe repository
-final wardrobeRepositoryProvider = Provider<WardrobeRepository>((ref) {
-  return WardrobeRepository();
+/// Provider for backend products service
+final backendProductsServiceProvider = Provider<BackendProductsService>((ref) {
+  return BackendProductsService();
 });
 
-/// Provider for wardrobe items list
+/// Provider for wardrobe items (from AI backend)
 final wardrobeItemsProvider =
     FutureProvider<List<ClothingItem>>((ref) async {
-  final repository = ref.watch(wardrobeRepositoryProvider);
-  return repository.getWardrobeItems();
+  final service = ref.watch(backendProductsServiceProvider);
+  return service.getAllProducts(limit: 100);
 });
 
-/// State notifier for managing wardrobe state
-class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
-  final WardrobeRepository _repository;
+/// Provider for backend products (from AI backend)
+final backendProductsProvider =
+    FutureProvider<List<ClothingItem>>((ref) async {
+  final service = ref.watch(backendProductsServiceProvider);
+  return service.getAllProducts(limit: 100);
+});
 
-  WardrobeNotifier(this._repository) : super(const AsyncValue.loading()) {
+/// State notifier for managing wardrobe state (using backend products)
+class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
+  final BackendProductsService _service;
+
+  WardrobeNotifier(this._service) : super(const AsyncValue.loading()) {
     loadItems();
   }
 
   Future<void> loadItems() async {
     state = const AsyncValue.loading();
     try {
-      final items = await _repository.getWardrobeItems();
+      final items = await _service.getAllProducts(limit: 100);
       state = AsyncValue.data(items);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
   }
 
+  // Note: Add/delete functionality would require backend API endpoints
+  // For now, these are placeholder methods
   Future<void> addItem({
     required dynamic imageFile,
     required String name,
@@ -39,27 +48,13 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
     required String color,
     required ClothingUsage usage,
   }) async {
-    try {
-      await _repository.addClothingItem(
-        imageFile: imageFile,
-        name: name,
-        category: category,
-        color: color,
-        usage: usage,
-      );
-      await loadItems();
-    } catch (e) {
-      rethrow;
-    }
+    // TODO: Implement backend API for adding items
+    throw UnimplementedError('Add item requires backend API endpoint');
   }
 
   Future<void> deleteItem(ClothingItem item) async {
-    try {
-      await _repository.deleteClothingItem(item);
-      await loadItems();
-    } catch (e) {
-      rethrow;
-    }
+    // TODO: Implement backend API for deleting items
+    throw UnimplementedError('Delete item requires backend API endpoint');
   }
 }
 
@@ -67,6 +62,6 @@ class WardrobeNotifier extends StateNotifier<AsyncValue<List<ClothingItem>>> {
 final wardrobeNotifierProvider =
     StateNotifierProvider<WardrobeNotifier, AsyncValue<List<ClothingItem>>>(
         (ref) {
-  final repository = ref.watch(wardrobeRepositoryProvider);
-  return WardrobeNotifier(repository);
+  final service = ref.watch(backendProductsServiceProvider);
+  return WardrobeNotifier(service);
 });
