@@ -8,6 +8,8 @@ import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/widgets/app_button.dart';
 import 'package:clothwise/src/widgets/app_text_field.dart';
 import 'package:clothwise/src/features/auth/presentation/providers/auth_providers.dart';
+import 'package:clothwise/src/core/services/preferences_service.dart';
+import 'package:clothwise/src/widgets/app_toast.dart';
 
 /// Login screen with email and password
 /// Integrates with Firebase Authentication
@@ -23,6 +25,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
@@ -31,16 +40,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// Load saved credentials if Remember Me was enabled
+  Future<void> _loadSavedCredentials() async {
+    final rememberMe = await PreferencesService.isRememberMeEnabled();
+    if (rememberMe) {
+      final email = await PreferencesService.getSavedEmail();
+      final password = await PreferencesService.getSavedPassword();
+
+      if (email != null && password != null) {
+        setState(() {
+          _emailController.text = email;
+          _passwordController.text = password;
+          _rememberMe = true;
+        });
+      }
+    }
+  }
+
   /// Handle login with Firebase Authentication
   Future<void> _handleLogin() async {
     // Clear any previous errors
     ref.read(authNotifierProvider.notifier).clearError();
 
     if (_formKey.currentState?.validate() ?? false) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
       // Call sign in method from AuthNotifier
       await ref.read(authNotifierProvider.notifier).signInWithEmail(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
+            email: email,
+            password: password,
           );
 
       // Check if login was successful
@@ -49,21 +78,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         if (authState.error != null) {
           // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authState.error!),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 4),
-            ),
-          );
+          AppToast.showError(context, authState.error!);
         } else if (authState.user != null) {
-          // Login successful - check email verification
-          if (authState.isEmailVerified) {
-            // Email verified - go to home
-            context.go(RoutePaths.home);
-          } else {
-            // Email not verified - go to verification screen
-            context.go(RoutePaths.emailVerification);
+          // Login successful - save credentials if Remember Me is checked
+          await PreferencesService.saveLoginCredentials(
+            email: email,
+            password: password,
+            rememberMe: _rememberMe,
+          );
+
+          // Check email verification and navigate
+          if (mounted) {
+            if (authState.isEmailVerified) {
+              // Email verified - go to home
+              context.go(RoutePaths.home);
+            } else {
+              // Email not verified - go to verification screen
+              context.go(RoutePaths.emailVerification);
+            }
           }
         }
       }
@@ -198,7 +230,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                 ),
 
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.md),
+
+                // Remember Me checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (value) {
+                        setState(() {
+                          _rememberMe = value ?? false;
+                        });
+                      },
+                      activeColor: AppColors.primaryBrown,
+                    ),
+                    Text(
+                      'Remember Me',
+                      style: AppTextStyles.bodyRegular.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
 
                 // Login button
                 AppButton(
@@ -294,16 +349,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             onPressed: () async {
               final email = emailController.text.trim();
               if (email.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter your email'),
-                  ),
-                );
+                AppToast.showWarning(context, 'Please enter your email');
                 return;
               }
 
-              // Save ScaffoldMessenger before closing dialog
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              // Save context before closing dialog
+              final scaffoldContext = context;
               Navigator.of(context).pop();
 
               try {
@@ -312,20 +363,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     .read(authNotifierProvider.notifier)
                     .sendPasswordResetEmail(email);
 
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Password reset link sent! Check your email.'),
-                    backgroundColor: AppColors.successGreen,
-                    duration: Duration(seconds: 4),
-                  ),
-                );
+                if (scaffoldContext.mounted) {
+                  AppToast.showSuccess(scaffoldContext, 'Password reset link sent! Check your email.');
+                }
               } catch (e) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Error: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (scaffoldContext.mounted) {
+                  AppToast.showError(scaffoldContext, 'Error: $e');
+                }
               }
             },
           ),

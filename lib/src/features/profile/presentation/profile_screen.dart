@@ -1,6 +1,7 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:clothwise/src/app/router.dart';
 import 'package:clothwise/src/app/theme/app_colors.dart';
 import 'package:clothwise/src/app/theme/app_spacing.dart';
 import 'package:clothwise/src/app/theme/app_text_styles.dart';
@@ -24,9 +25,6 @@ class ProfileScreen extends ConsumerWidget {
 
     // Watch wardrobe items for count
     final wardrobeState = ref.watch(backendProductsProvider);
-
-    // Generate random style score (85-100%)
-    final styleScore = 85 + Random().nextInt(16); // 85 to 100
 
     // Get username or fallback to email
     final displayName = user?.username ?? user?.email.split('@').first ?? 'User';
@@ -121,12 +119,6 @@ class ProfileScreen extends ConsumerWidget {
                         color: isDarkMode ? AppColors.dividerDark : AppColors.divider,
                       ),
                       _buildStatItem('0', 'Outfits', theme),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: isDarkMode ? AppColors.dividerDark : AppColors.divider,
-                      ),
-                      _buildStatItem('$styleScore%', 'Style Score', theme),
                     ],
                   ),
                 ],
@@ -268,6 +260,68 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Logout button
+            ElevatedButton.icon(
+              onPressed: () async {
+                // Show confirmation dialog
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: theme.cardTheme.color,
+                    title: Text(
+                      'Logout',
+                      style: AppTextStyles.h3.copyWith(
+                        color: theme.textTheme.headlineMedium?.color,
+                      ),
+                    ),
+                    content: Text(
+                      'Are you sure you want to logout?',
+                      style: AppTextStyles.bodyRegular.copyWith(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDarkMode ? AppColors.errorDark : AppColors.error,
+                        ),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldLogout == true && context.mounted) {
+                  // Perform logout
+                  await ref.read(authNotifierProvider.notifier).signOut();
+
+                  // Navigate to login screen
+                  if (context.mounted) {
+                    context.go(RoutePaths.login);
+                  }
+                }
+              },
+              icon: const Icon(Icons.logout, size: 20),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                backgroundColor: isDarkMode ? AppColors.errorDark : AppColors.error,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),

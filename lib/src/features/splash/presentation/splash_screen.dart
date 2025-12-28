@@ -23,8 +23,31 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateBasedOnState() async {
-    // Wait for splash screen to show
-    await Future.delayed(const Duration(seconds: 2));
+    // Wait for first frame to be built
+    await Future.delayed(Duration.zero);
+
+    if (!mounted) return;
+
+    // Check if user is authenticated first (fastest check)
+    final user = FirebaseAuth.instance.currentUser;
+
+    // If user is logged in, skip splash delay and go straight to app
+    if (user != null) {
+      // Small delay to ensure smooth transition
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
+
+      if (user.emailVerified) {
+        context.go(RoutePaths.home);
+      } else {
+        context.go(RoutePaths.emailVerification);
+      }
+      return;
+    }
+
+    // For non-logged-in users, show splash screen briefly
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
@@ -33,21 +56,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    // Check if user is authenticated
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (!mounted) return;
-
-    // Navigate based on state
+    // Navigate based on state (only for non-logged-in users)
     if (!hasCompletedOnboarding) {
       // First time user - show onboarding
       context.go(RoutePaths.onboarding);
-    } else if (user == null) {
+    } else {
       // User has seen onboarding but not logged in
       context.go(RoutePaths.login);
-    } else {
-      // User is logged in - go to home
-      context.go(RoutePaths.home);
     }
   }
 

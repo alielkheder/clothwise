@@ -64,32 +64,95 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RoutePaths.splash,
       name: RouteNames.splash,
-      builder: (context, state) => const SplashScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const SplashScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.onboarding,
       name: RouteNames.onboarding,
-      builder: (context, state) => const OnboardingScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const OnboardingScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+            child: child,
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.styleQuestionnaire,
       name: RouteNames.styleQuestionnaire,
-      builder: (context, state) => const StyleQuestionnaireScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const StyleQuestionnaireScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+            child: child,
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.login,
       name: RouteNames.login,
-      builder: (context, state) => const LoginScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const LoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+              child: child,
+            ),
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.register,
       name: RouteNames.register,
-      builder: (context, state) => const RegisterScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const RegisterScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+            child: child,
+          );
+        },
+      ),
     ),
     GoRoute(
       path: RoutePaths.emailVerification,
       name: RouteNames.emailVerification,
-      builder: (context, state) => const EmailVerificationScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const EmailVerificationScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
     ),
 
     // Main app with bottom navigation
@@ -138,16 +201,43 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RoutePaths.settings,
       name: RouteNames.settings,
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const SettingsScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+            child: child,
+          );
+        },
+      ),
     ),
 
     // Outfit Details (full screen, outside shell)
     GoRoute(
       path: RoutePaths.outfitDetails,
       name: RouteNames.outfitDetails,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final outfitId = state.pathParameters['id'] ?? '1';
-        return OutfitDetailsScreen(outfitId: outfitId);
+        return CustomTransitionPage(
+          key: state.pageKey,
+          child: OutfitDetailsScreen(outfitId: outfitId),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.1),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+                child: child,
+              ),
+            );
+          },
+        );
       },
     ),
 
@@ -155,9 +245,21 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RoutePaths.recommendations,
       name: RouteNames.recommendations,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final imagePath = state.extra as String;
-        return RecommendationsScreen(imagePath: imagePath);
+        return CustomTransitionPage(
+          key: state.pageKey,
+          child: RecommendationsScreen(imagePath: imagePath),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 1.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+              child: child,
+            );
+          },
+        );
       },
     ),
   ],

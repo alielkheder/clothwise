@@ -3,16 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:clothwise/src/app/app.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase (optional - skip if not configured yet)
+  // Initialize Firebase with options
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     print('✅ Firebase initialized successfully');
   } catch (e) {
-    print('⚠️ Firebase not configured yet - skipping initialization');
+    print('⚠️ Firebase initialization failed: $e');
     print('   To enable Firebase auth, follow FIREBASE_SETUP.md');
   }
 

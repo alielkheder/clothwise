@@ -12,10 +12,12 @@ import 'package:clothwise/src/features/recommendations/data/recommendation_servi
 class OutfitDetailScreen extends ConsumerWidget {
   const OutfitDetailScreen({
     required this.outfit,
+    this.heroTag,
     super.key,
   });
 
   final Map<String, dynamic> outfit;
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,37 +59,40 @@ class OutfitDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Center(
-                    child: Container(
-                      width: double.infinity,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        color: theme.cardTheme.color,
-                        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDarkMode ? AppColors.shadowMediumDark : AppColors.shadowMedium,
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                        child: imagePath.startsWith('http')
-                            ? Image.network(
-                                imagePath,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildPlaceholder(isDarkMode);
-                                },
-                              )
-                            : Image.file(
-                                File(imagePath),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildPlaceholder(isDarkMode);
-                                },
-                              ),
+                    child: Hero(
+                      tag: heroTag ?? 'outfit_detail',
+                      child: Container(
+                        width: double.infinity,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          color: theme.cardTheme.color,
+                          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDarkMode ? AppColors.shadowMediumDark : AppColors.shadowMedium,
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                          child: imagePath.startsWith('http')
+                              ? Image.network(
+                                  imagePath,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildPlaceholder(isDarkMode);
+                                  },
+                                )
+                              : Image.file(
+                                  File(imagePath),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildPlaceholder(isDarkMode);
+                                  },
+                                ),
+                        ),
                       ),
                     ),
                   ),

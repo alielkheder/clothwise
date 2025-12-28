@@ -8,7 +8,7 @@ class BackendProductsService {
 
   BackendProductsService({
     Dio? dio,
-    this.baseUrl = 'http://192.168.1.5:5000', // Local network IP for phone/emulator
+    this.baseUrl = 'http://192.168.1.8:5000', // Local network IP for phone/emulator
   }) : _dio = dio ?? Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),

@@ -46,7 +46,9 @@
       "Bash(powershell -ExecutionPolicy Bypass -File d:final_projectclothwiseget_ngrok_url.ps1)",
       "Bash(powershell -ExecutionPolicy Bypass -File \"d:/final_project/clothwise/get_ngrok_url.ps1\")",
       "Bash(\"C:\\Users\\yassi\\Downloads\\ngrok.exe\" http --log stdout 5000)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(\"C:\\Users\\yassi\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -c \"import torch; import flask; import PIL; import faiss; print(''All dependencies available!'')\")",
+      "Bash(\"C:\\Users\\yassi\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" \"d:\\final_project\\clothwise\\backend\\api_server.py\")"
     ],
     "deny": [],
     "ask": []

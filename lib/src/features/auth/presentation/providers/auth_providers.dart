@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:clothwise/src/features/auth/data/services/firebase_auth_service.dart';
 import 'package:clothwise/src/features/auth/domain/entities/app_user.dart';
 import 'package:clothwise/src/features/auth/domain/entities/auth_state.dart';
+import 'package:clothwise/src/core/services/preferences_service.dart';
 
 /// Provider for FirebaseAuthService singleton
 /// Use this to access auth methods throughout the app
@@ -118,6 +119,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     try {
       await _authService.signOut();
+
+      // Clear saved login credentials
+      await PreferencesService.clearLoginCredentials();
 
       // Reset to unauthenticated state
       state = AuthState.unauthenticated();

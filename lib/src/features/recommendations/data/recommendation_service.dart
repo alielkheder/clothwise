@@ -8,7 +8,7 @@ class RecommendationService {
       : _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: 'http://192.168.1.5:5000', // Local network IP for phone/emulator
+                baseUrl: 'http://192.168.1.8:5000', // Local network IP for phone/emulator
                 connectTimeout: const Duration(seconds: 30),
                 receiveTimeout: const Duration(seconds: 30),
               ),

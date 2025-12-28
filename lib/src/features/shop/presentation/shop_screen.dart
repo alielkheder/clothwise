@@ -10,6 +10,8 @@ import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/app/theme/theme_provider.dart';
 import 'package:clothwise/src/features/shop/data/shop_service.dart';
 import 'package:clothwise/src/features/shop/presentation/providers/shop_providers.dart';
+import 'package:clothwise/src/widgets/empty_state.dart';
+import 'package:clothwise/src/widgets/app_toast.dart';
 
 /// Shop screen - Shopping suggestions with real products
 class ShopScreen extends ConsumerStatefulWidget {
@@ -169,49 +171,50 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             // Products grid
             Expanded(
               child: filteredProducts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
-                            size: 64,
-                            color: isDarkMode
-                                ? AppColors.textTertiaryDark
-                                : AppColors.textTertiary,
+                  ? RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(smartShopProductsProvider);
+                        await Future.delayed(const Duration(milliseconds: 500));
+                      },
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height - 400,
+                          child: EmptyState(
+                            icon: Icons.shopping_bag_outlined,
+                            title: 'No products found',
+                            message: 'Try adjusting your filters to see more products',
+                            actionLabel: 'Clear Filters',
+                            onActionPressed: () {
+                              setState(() {
+                                _selectedPriceFilter = 'All';
+                                _selectedCategory = null;
+                                _selectedStyleType = null;
+                              });
+                            },
                           ),
-                          const SizedBox(height: AppSpacing.md),
-                          Text(
-                            'No products found',
-                            style: AppTextStyles.h3.copyWith(
-                              color: theme.textTheme.headlineSmall?.color,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Try adjusting your filters',
-                            style: AppTextStyles.bodyRegular.copyWith(
-                              color: isDarkMode
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.65,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                      ),
-                      itemCount: filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = filteredProducts[index];
-                        return _ProductCard(product: product);
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(smartShopProductsProvider);
+                        await Future.delayed(const Duration(milliseconds: 500));
                       },
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.65,
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                        ),
+                        itemCount: filteredProducts.length,
+                        itemBuilder: (context, index) {
+                          final product = filteredProducts[index];
+                          return _ProductCard(product: product);
+                        },
+                      ),
                     ),
             ),
           ],
@@ -233,45 +236,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             ],
           ),
         ),
-        error: (error, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: isDarkMode
-                      ? AppColors.textTertiaryDark
-                      : AppColors.textTertiary,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Failed to load products',
-                  style: AppTextStyles.h3.copyWith(
-                    color: theme.textTheme.headlineSmall?.color,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  error.toString(),
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: isDarkMode
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                ElevatedButton(
-                  onPressed: () => ref.refresh(smartShopProductsProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
+        error: (error, stack) => EmptyState(
+          icon: Icons.error_outline,
+          title: 'Failed to load products',
+          message: 'Could not connect to the shop. Please check your connection and try again.',
+          actionLabel: 'Retry',
+          onActionPressed: () => ref.refresh(smartShopProductsProvider),
         ),
       ),
     );
@@ -292,12 +262,7 @@ class _ProductCard extends ConsumerWidget {
 
     // Show info that we're searching Amazon
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Opening Amazon search...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppToast.showInfo(context, 'Opening Amazon search...');
     }
 
     try {
@@ -309,16 +274,7 @@ class _ProductCard extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to open link: $e'),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {},
-            ),
-          ),
-        );
+        AppToast.showError(context, 'Failed to open link: $e');
       }
     }
   }

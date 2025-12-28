@@ -13,6 +13,8 @@ import 'package:clothwise/src/features/wardrobe/presentation/providers/wardrobe_
 import 'package:clothwise/src/features/wardrobe/presentation/widgets/camera_action_dialog.dart';
 import 'package:clothwise/src/features/wardrobe/data/local_wardrobe_storage.dart';
 import 'package:clothwise/src/features/home/domain/entities/clothing_item.dart';
+import 'package:clothwise/src/widgets/empty_state.dart';
+import 'package:clothwise/src/widgets/app_toast.dart';
 
 /// Wardrobe screen (Screens 9-10) - User's clothing collection
 class WardrobeScreen extends ConsumerStatefulWidget {
@@ -48,9 +50,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error capturing photo: $e')),
-        );
+        AppToast.showError(context, 'Error capturing photo: $e');
       }
     }
   }
@@ -79,17 +79,13 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item added to wardrobe!')),
-        );
+        AppToast.showSuccess(context, 'Item added to wardrobe!');
         // Refresh wardrobe items
         ref.invalidate(backendProductsProvider);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving item: $e')),
-        );
+        AppToast.showError(context, 'Error saving item: $e');
       }
     }
   }
@@ -195,50 +191,55 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                           }).toList();
 
                     if (filteredItems.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.checkroom_outlined,
-                              size: 64,
-                              color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          ref.invalidate(backendProductsProvider);
+                          // Wait for the refresh to complete
+                          await Future.delayed(const Duration(milliseconds: 500));
+                        },
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height - 300,
+                            child: EmptyState(
+                              icon: Icons.checkroom_outlined,
+                              title: 'No items found',
+                              message: _selectedCategory == 'All'
+                                  ? 'Tap + to add your first item to your wardrobe'
+                                  : 'No items in $_selectedCategory category',
+                              actionLabel: _selectedCategory != 'All' ? 'View All' : null,
+                              onActionPressed: _selectedCategory != 'All'
+                                  ? () => setState(() => _selectedCategory = 'All')
+                                  : null,
                             ),
-                            const SizedBox(height: AppSpacing.md),
-                            Text(
-                              'No items in your wardrobe',
-                              style: AppTextStyles.bodyRegular.copyWith(
-                                color: isDarkMode ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              'Tap + to add your first item',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: theme.textTheme.bodySmall?.color,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       );
                     }
 
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.7,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                      ),
-                      itemCount: filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return _WardrobeItemCard(
-                          item: item,
-                          // onTap disabled - only get AI recommendations from camera/gallery
-                        );
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(backendProductsProvider);
+                        // Wait for the refresh to complete
+                        await Future.delayed(const Duration(milliseconds: 500));
                       },
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                        ),
+                        itemCount: filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          return _WardrobeItemCard(
+                            item: item,
+                            // onTap disabled - only get AI recommendations from camera/gallery
+                          );
+                        },
+                      ),
                     );
                   },
                   loading: () => Center(
@@ -246,32 +247,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen> {
                       color: theme.colorScheme.primary,
                     ),
                   ),
-                  error: (error, stack) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Error loading items',
-                          style: AppTextStyles.bodyRegular.copyWith(
-                            color: isDarkMode ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          error.toString(),
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: theme.textTheme.bodySmall?.color,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+                  error: (error, stack) => EmptyState(
+                    icon: Icons.error_outline,
+                    title: 'Error loading items',
+                    message: 'Failed to load wardrobe items. Please try again.',
+                    actionLabel: 'Retry',
+                    onActionPressed: () => ref.invalidate(backendProductsProvider),
                   ),
                 );
               },

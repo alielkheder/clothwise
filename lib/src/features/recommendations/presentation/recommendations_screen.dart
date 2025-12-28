@@ -10,6 +10,7 @@ import 'package:clothwise/src/app/theme/app_text_styles.dart';
 import 'package:clothwise/src/app/theme/theme_provider.dart';
 import 'package:clothwise/src/features/recommendations/data/recommendation_service.dart';
 import 'package:clothwise/src/features/home/data/datasources/outfit_storage_service.dart';
+import 'package:clothwise/src/widgets/outfit_building_loader.dart';
 
 /// Recommendations screen - Shows AI recommendations based on uploaded item
 class RecommendationsScreen extends ConsumerStatefulWidget {
@@ -246,14 +247,22 @@ class _RecommendationsScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
+                  OutfitBuildingLoader(
+                    size: 180,
                     color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xl),
                   Text(
                     'Getting AI recommendations...',
                     style: AppTextStyles.bodyRegular.copyWith(
                       color: isDarkMode ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Our AI is analyzing your item...',
+                    style: AppTextStyles.caption.copyWith(
+                      color: isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiary,
                     ),
                   ),
                 ],

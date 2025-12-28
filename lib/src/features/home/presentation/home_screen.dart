@@ -441,7 +441,10 @@ class _LastOutfitsSectionState extends State<_LastOutfitsSection> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => OutfitDetailScreen(outfit: outfit),
+                                builder: (context) => OutfitDetailScreen(
+                                  outfit: outfit,
+                                  heroTag: 'outfit_$index',
+                                ),
                               ),
                             );
                           },
@@ -463,32 +466,35 @@ class _LastOutfitsSectionState extends State<_LastOutfitsSection> {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                              // Image from uploaded photo
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(AppSpacing.cardRadius),
+                              // Image from uploaded photo with Hero transition
+                              Hero(
+                                tag: 'outfit_$index',
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(AppSpacing.cardRadius),
+                                  ),
+                                  child: imagePath != null && imagePath.isNotEmpty
+                                      ? (imagePath.startsWith('http')
+                                          ? Image.network(
+                                              imagePath,
+                                              height: 140,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return _buildPlaceholder(isDarkMode);
+                                              },
+                                            )
+                                          : Image.file(
+                                              File(imagePath),
+                                              height: 140,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return _buildPlaceholder(isDarkMode);
+                                              },
+                                            ))
+                                      : _buildPlaceholder(isDarkMode),
                                 ),
-                                child: imagePath != null && imagePath.isNotEmpty
-                                    ? (imagePath.startsWith('http')
-                                        ? Image.network(
-                                            imagePath,
-                                            height: 140,
-                                            width: double.infinity,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return _buildPlaceholder(isDarkMode);
-                                            },
-                                          )
-                                        : Image.file(
-                                            File(imagePath),
-                                            height: 140,
-                                            width: double.infinity,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return _buildPlaceholder(isDarkMode);
-                                            },
-                                          ))
-                                    : _buildPlaceholder(isDarkMode),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(AppSpacing.sm),
