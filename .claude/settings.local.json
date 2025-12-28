@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)",
+      "Bash(timeout 15 bash:*)",
+      "Bash(flutter doctor:*)",
+      "Bash(flutter pub global:*)",
+      "Bash(C:UsersyassiAppDataLocalPubCachebinflutterfire.bat configure --project=clothwise-de090 --platforms=android --yes)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter build:*)",
+      "Bash(timeout 30 bash:*)",
+      "Bash(flutter devices:*)"
+    ]
+  }
+}
